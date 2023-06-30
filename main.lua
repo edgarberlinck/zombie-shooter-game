@@ -34,6 +34,8 @@ function love.load()
 
     x = love.graphics.getWidth() / 2,
     y = love.graphics.getHeight() / 2,
+
+    injured = false,
     moveRight = function(deltaTime)
       if (GameManager.player.x < love.graphics.getWidth()) then
         GameManager.player.x = GameManager.player.x + GameManager.player.speed * deltaTime
@@ -56,6 +58,9 @@ function love.load()
     end,
 
     update = function()
+      if (GameManager.player.injured) then
+        love.graphics.setColor(1, 0, 0)
+      end
       love.graphics.draw(
         GameManager.player.sprite,
         GameManager.player.x,
@@ -75,10 +80,12 @@ function love.load()
 end
 
 function love.update(deltaTime)
+  love.graphics.setColor(1, 1, 1)
   if love.keyboard.isDown("space") and GameManager.state ~= GameState.InGame then
     GameManager.state = GameState.InGame
     GameManager.score = 0
     GameManager.numberOfShoots = 0
+    GameManager.player.injured = false
   end
 
   if GameManager.state == GameState.InGame then
@@ -106,15 +113,21 @@ function love.update(deltaTime)
       GameManager.elapsedFrames = GameManager.elapsedFrames + 1
     end
     -- Enemy movement
-    for _, enemy in ipairs(GameEnemies) do
+    for i, enemy in ipairs(GameEnemies) do
       local enemyMovimentAngle = EnemyPlayerAngle(enemy)
       enemy.x = enemy.x + math.cos(enemyMovimentAngle) * enemy.speed * deltaTime
       enemy.y = enemy.y + math.sin(enemyMovimentAngle) * enemy.speed * deltaTime
 
       if DistanceBetween(enemy.x, enemy.y, GameManager.player.x, GameManager.player.y) < 30 then
-        GameManager.state = GameState.GameOver
-        GameEnemies = {}
-        Bullets = {}
+        if (GameManager.player.injured) then
+          GameManager.state = GameState.GameOver
+          GameEnemies = {}
+          Bullets = {}
+        else
+          GameManager.player.injured = true
+          GameManager.player.speed = GameManager.player.speed * 2
+          table.remove(GameEnemies, i)
+        end
       end
     end
     --------
@@ -194,8 +207,6 @@ function love.draw()
   end
 
   if GameManager.state == GameState.InGame then
-    GameManager.player.update()
-
     for _, enemy in ipairs(GameEnemies) do
       love.graphics.draw(
         enemy.sprite,
@@ -220,6 +231,8 @@ function love.draw()
         bullet.sprite:getHeight() / 2
       )
     end
+
+    GameManager.player.update()
   end
 end
 
@@ -230,6 +243,7 @@ function love.mousepressed(x, y, button)
 end
 
 function PlayerMouseAngle()
+  -- Calculate the angle between two point
   return math.atan2(
     GameManager.player.y - love.mouse.getY(),
     GameManager.player.x - love.mouse.getX()
